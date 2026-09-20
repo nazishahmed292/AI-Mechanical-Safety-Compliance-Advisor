@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Mechanical Safety Compliance Advisor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #ffffff;
+      --surface:  #f7f8fa;
+      --border:   #e5e7eb;
+      --text:     #1f2328;
+      --muted:    #57606a;
+      --accent:   #3b82d4;
+      --danger:   #dc2626;
+      --warn:     #d97706;
+      --ok:       #16a34a;
+      --radius:   6px;
+    }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--surface);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--accent);
+    }
+    .logo svg { flex-shrink: 0; }
+    .badge {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      grid-template-rows: calc(100vh - 56px);
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      margin: 16px 0 8px;
+    }
+    .section-title:first-child { margin-top: 0; }
+    .nav-btn {
+      width: 100%;
+      text-align: left;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .nav-btn:hover, .nav-btn.active { background: var(--surface); color: var(--accent); }
+
+    .std-item {
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .std-item:hover { border-color: var(--accent); }
+    .std-id { font-weight: 600; font-size: 12px; color: var(--accent); }
+    .std-title { font-size: 11px; color: var(--muted); line-height: 1.3; }
+
+    /* ── Main ── */
+    main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      padding: 12px 20px 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      padding: 8px 16px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border: 1px solid transparent;
+      border-bottom: none;
+      cursor: pointer;
+      font-size: 13px;
+      background: transparent;
+      color: var(--muted);
+    }
+    .tab.active {
+      background: var(--bg);
+      border-color: var(--border);
+      color: var(--text);
+      font-weight: 600;
+      margin-bottom: -1px;
+    }
+    .tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+    .tab-content.active { display: flex; }
+
+    /* ── Chat ── */
+    #chatMessages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message {
+      max-width: 84%;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 13.5px;
+      line-height: 1.65;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+    .message.assistant {
+      align-self: flex-start;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 2px;
+    }
+    .message.system {
+      align-self: center;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      max-width: 100%;
+    }
+    .msg-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+    }
+    .tag.std { border-color: var(--accent); color: var(--accent); }
+    .tag.haz { border-color: var(--warn); color: var(--warn); }
+
+    /* ── Input ── */
+    .chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .quick-prompts {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .qp-btn {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      color: var(--text);
+    }
+    .qp-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .input-row { display: flex; gap: 10px; }
+    #queryInput {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      height: 42px;
+      max-height: 140px;
+    }
+    #queryInput:focus { outline: none; border-color: var(--accent); }
+    #sendBtn {
+      padding: 10px 20px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    #sendBtn:disabled { opacity: .5; cursor: not-allowed; }
+    #sendBtn:hover:not(:disabled) { background: #2563b8; }
+
+    /* ── Compliance Summary Tab ── */
+    .summary-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+    textarea.machinery-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 14px;
+      min-height: 100px;
+      resize: vertical;
+    }
+    textarea.machinery-input:focus { outline: none; border-color: var(--accent); }
+    .primary-btn {
+      padding: 10px 24px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .primary-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .primary-btn:hover:not(:disabled) { background: #2563b8; }
+    #summaryResult {
+      margin-top: 24px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      white-space: pre-wrap;
+      font-size: 13.5px;
+      line-height: 1.7;
+      display: none;
+    }
+
+    /* ── Checklist Tab ── */
+    .checklist-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .checklist-category { margin-bottom: 24px; }
+    .cat-header {
+      font-weight: 700;
+      font-size: 14px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+    }
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+      background: var(--bg);
+    }
+    .checklist-item input[type=checkbox] { margin-top: 3px; flex-shrink: 0; cursor: pointer; }
+    .item-text { flex: 1; }
+    .item-id { font-size: 11px; color: var(--muted); }
+    .critical-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #fee2e2;
+      color: var(--danger);
+      flex-shrink: 0;
+    }
+    .rec-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #fef3c7;
+      color: var(--warn);
+      flex-shrink: 0;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Hazards Tab ── */
+    .hazards-panel { flex: 1; overflow-y: auto; padding: 24px; }
+    .hazard-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .hazard-header {
+      padding: 12px 16px;
+      background: var(--surface);
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .hazard-body { padding: 14px 16px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .col-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin: 2px;
+      background: var(--surface);
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" stroke="#3b82d4" stroke-width="1.8" fill="none"/>
+      <path d="M12 7v5l4 2" stroke="#3b82d4" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    AI Mechanical Safety Compliance Advisor
+  </div>
+  <div class="badge">IBM Granite · watsonx.ai</div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside>
+    <div class="section-title">Quick Actions</div>
+    <button class="nav-btn" id="btnAssess">Risk Assessment Guide</button>
+    <button class="nav-btn" id="btnGuarding">Machine Guarding</button>
+    <button class="nav-btn" id="btnPL">Performance Level (PL)</button>
+    <button class="nav-btn" id="btnLOTO">Lockout / Tagout</button>
+    <button class="nav-btn" id="btnCE">CE Marking Requirements</button>
+
+    <div class="section-title">Key Standards</div>
+    <div id="standardsList"></div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main>
+    <div class="tabs">
+      <button class="tab active" data-tab="chat">Chat Advisor</button>
+      <button class="tab" data-tab="summary">Compliance Summary</button>
+      <button class="tab" data-tab="checklist">Compliance Checklist</button>
+      <button class="tab" data-tab="hazards">Hazard Library</button>
+    </div>
+
+    <!-- Chat Tab -->
+    <div class="tab-content active" id="tab-chat">
+      <div id="chatMessages">
+        <div class="message system">Session started · Ask any mechanical safety compliance question below</div>
+        <div class="message assistant">
+          Welcome to the <strong>AI Mechanical Safety Compliance Advisor</strong>.<br><br>
+          I can help you with hazard identification, risk assessment per <strong>ISO 12100</strong>, machine guarding, Performance Level determination (<strong>ISO 13849</strong>), SIL assessment (<strong>IEC 62061</strong>), LOTO procedures, CE marking, and much more.<br><br>
+          Describe your machinery or ask a compliance question to get started.
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="quick-prompts">
+          <button class="qp-btn" data-q="What are the main hazards of a CNC milling machine?">CNC hazards</button>
+          <button class="qp-btn" data-q="How do I determine the required Performance Level for my safety function?">PL determination</button>
+          <button class="qp-btn" data-q="What safety distances are required for fixed guards per ISO 13857?">Safety distances</button>
+          <button class="qp-btn" data-q="Explain the LOTO procedure requirements for maintenance">LOTO requirements</button>
+          <button class="qp-btn" data-q="What documentation do I need for CE marking of my machinery?">CE documentation</button>
+        </div>
+        <div class="input-row">
+          <textarea id="queryInput" placeholder="Ask a mechanical safety compliance question…" rows="1"></textarea>
+          <button id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compliance Summary Tab -->
+    <div class="tab-content" id="tab-summary">
+      <div class="summary-panel">
+        <h2 style="font-size:16px;margin-bottom:6px;">Machinery Compliance Assessment</h2>
+        <p style="color:var(--muted);margin-bottom:20px;font-size:13px;">Provide a description of your machinery and receive a comprehensive compliance assessment covering hazards, applicable standards, and requirements.</p>
+        <div class="form-group">
+          <label>Machinery / Equipment Description</label>
+          <textarea class="machinery-input" id="machineryInput" placeholder="e.g., 5-axis CNC machining centre with automatic tool changer, 18.5 kW spindle, operating at speeds up to 12,000 RPM, used for aluminium aerospace components…"></textarea>
+        </div>
+        <button class="primary-btn" id="assessBtn">Generate Compliance Assessment</button>
+        <pre id="summaryResult"></pre>
+      </div>
+    </div>
+
+    <!-- Checklist Tab -->
+    <div class="tab-content" id="tab-checklist">
+      <div class="checklist-panel" id="checklistPanel"></div>
+    </div>
+
+    <!-- Hazards Tab -->
+    <div class="tab-content" id="tab-hazards">
+      <div class="hazards-panel" id="hazardsPanel"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let sessionId = null;
+  let sending   = false;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function escapeHtml(t) {
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function mdToHtml(t) {
+    return escapeHtml(t)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>')
+      .replace(/^(\d+\.) /gm, '<br>$1 ')
+      .replace(/^[•\-] /gm, '<br>• ');
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Load Sidebar Standards ─────────────────────────────────────────────────
+  async function loadStandards() {
+    try {
+      const r = await fetch('/api/standards');
+      const d = await r.json();
+      const container = document.getElementById('standardsList');
+      d.standards.forEach(s => {
+        const el = document.createElement('div');
+        el.className = 'std-item';
+        el.innerHTML = `<div class="std-id">${escapeHtml(s.id)}</div><div class="std-title">${escapeHtml(s.title)}</div>`;
+        el.addEventListener('click', () => sendQuery(`Tell me about ${s.id} and its key requirements for machinery safety.`));
+        container.appendChild(el);
+      });
+    } catch(_) {}
+  }
+
+  // ── Load Checklist ─────────────────────────────────────────────────────────
+  async function loadChecklist() {
+    try {
+      const r = await fetch('/api/checklist');
+      const d = await r.json();
+      const panel = document.getElementById('checklistPanel');
+
+      const cats = [...new Set(d.checklist.map(i => i.category))];
+      cats.forEach(cat => {
+        const sec = document.createElement('div');
+        sec.className = 'checklist-category';
+        sec.innerHTML = `<div class="cat-header">${escapeHtml(cat)}</div>`;
+        d.checklist.filter(i => i.category === cat).forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'checklist-item';
+          const badge = item.critical
+            ? '<span class="critical-badge">CRITICAL</span>'
+            : '<span class="rec-badge">RECOMMENDED</span>';
+          row.innerHTML = `
+            <input type="checkbox" id="${item.id}" />
+            <div class="item-text">
+              <div>${escapeHtml(item.item)}</div>
+              <div class="item-id">${item.id}</div>
+            </div>
+            ${badge}`;
+          sec.appendChild(row);
+        });
+        panel.appendChild(sec);
+      });
+    } catch(_) {}
+  }
+
+  // ── Load Hazards ───────────────────────────────────────────────────────────
+  async function loadHazards() {
+    try {
+      const r = await fetch('/api/hazards');
+      const d = await r.json();
+      const panel = document.getElementById('hazardsPanel');
+      d.hazardCategories.forEach(h => {
+        const card = document.createElement('div');
+        card.className = 'hazard-card';
+        const types    = h.types.map(t => `<span class="pill">${escapeHtml(t)}</span>`).join('');
+        const controls = h.controls.map(c => `<span class="pill">${escapeHtml(c)}</span>`).join('');
+        card.innerHTML = `
+          <div class="hazard-header">${escapeHtml(h.name)}</div>
+          <div class="hazard-body">
+            <div class="two-col">
+              <div><div class="col-label">Hazard Types</div>${types}</div>
+              <div><div class="col-label">Typical Controls</div>${controls}</div>
+            </div>
+          </div>`;
+        panel.appendChild(card);
+      });
+    } catch(_) {}
+  }
+
+  // ── Chat ───────────────────────────────────────────────────────────────────
+  function appendMessage(role, html, meta) {
+    const msgs = document.getElementById('chatMessages');
+    const div  = document.createElement('div');
+    div.className = `message ${role}`;
+    div.innerHTML = html;
+    if (meta) {
+      const m = document.createElement('div');
+      m.className = 'msg-meta';
+      m.textContent = meta;
+      div.appendChild(m);
+    }
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function appendTyping() {
+    return appendMessage('assistant', '<span class="spinner"></span> Analyzing…');
+  }
+
+  async function sendQuery(query) {
+    if (sending || !query.trim()) return;
+    sending = true;
+
+    // Switch to chat tab
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.querySelector('[data-tab="chat"]').classList.add('active');
+    document.getElementById('tab-chat').classList.add('active');
+
+    document.getElementById('queryInput').value = '';
+    document.getElementById('sendBtn').disabled = true;
+
+    appendMessage('user', escapeHtml(query));
+    const typing = appendTyping();
+
+    try {
+      const r = await fetch('/api/query', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ query, sessionId }),
+      });
+      const d = await r.json();
+      sessionId = d.sessionId;
+
+      let html = mdToHtml(d.response);
+
+      if (d.relatedStandards && d.relatedStandards.length > 0) {
+        html += '<div class="tags">' +
+          d.relatedStandards.map(s => `<span class="tag std">${escapeHtml(s.id)}</span>`).join('') +
+        '</div>';
+      }
+      if (d.relatedHazards && d.relatedHazards.length > 0) {
+        html += '<div class="tags">' +
+          d.relatedHazards.map(h => `<span class="tag haz">⚠ ${escapeHtml(h)}</span>`).join('') +
+        '</div>';
+      }
+
+      typing.innerHTML = html;
+      typing.querySelector('.msg-meta') && typing.querySelector('.msg-meta').remove();
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      meta.textContent = `${d.intent || ''} · ${new Date(d.timestamp).toLocaleTimeString()}`;
+      typing.appendChild(meta);
+
+    } catch(e) {
+      typing.innerHTML = 'Sorry, there was an error contacting the advisor. Please ensure the server is running.';
+    }
+
+    sending = false;
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+  }
+
+  // Quick-prompt buttons
+  document.querySelectorAll('.qp-btn').forEach(btn => {
+    btn.addEventListener('click', () => sendQuery(btn.dataset.q));
+  });
+
+  // Quick-action sidebar
+  const quickActions = {
+    btnAssess:   'Walk me through the ISO 12100 risk assessment process for mechanical machinery.',
+    btnGuarding: 'What are the main types of machine guards and when should each be used?',
+    btnPL:       'How do I determine the required Performance Level for a safety function on my machine?',
+    btnLOTO:     'What are the OSHA and ISO requirements for lockout tagout procedures?',
+    btnCE:       'What are all the steps and documentation required for CE marking of machinery under the EU Machinery Directive?',
+  };
+  Object.entries(quickActions).forEach(([id, q]) => {
+    document.getElementById(id).addEventListener('click', () => sendQuery(q));
+  });
+
+  // Send button & Enter key
+  document.getElementById('sendBtn').addEventListener('click', () => {
+    sendQuery(document.getElementById('queryInput').value);
+  });
+  document.getElementById('queryInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendQuery(document.getElementById('queryInput').value);
+    }
+  });
+
+  // ── Compliance Assessment ──────────────────────────────────────────────────
+  document.getElementById('assessBtn').addEventListener('click', async () => {
+    const machinery = document.getElementById('machineryInput').value.trim();
+    if (!machinery) return;
+    const btn = document.getElementById('assessBtn');
+    const res = document.getElementById('summaryResult');
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+    res.style.display = 'none';
+    try {
+      const r = await fetch('/api/compliance-summary', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ machinery }),
+      });
+      const d = await r.json();
+      res.textContent = d.response;
+      res.style.display = 'block';
+    } catch(e) {
+      res.textContent = 'Error generating assessment. Please ensure the server is running.';
+      res.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Generate Compliance Assessment';
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  loadStandards();
+  loadChecklist();
+  loadHazards();
+</script>
+
+</body>
+</html>

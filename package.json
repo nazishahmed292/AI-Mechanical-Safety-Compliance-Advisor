@@ -1,0 +1,34 @@
+{
+  "name": "ai-mechanical-safety-compliance-advisor",
+  "version": "1.0.0",
+  "description": "An AI-powered agent for mechanical safety compliance advisory using IBM Granite via watsonx.ai",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "cli": "node src/cli.js",
+    "test": "node src/test.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "readline": "^1.3.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  },
+  "keywords": [
+    "mechanical-safety",
+    "compliance",
+    "ai-agent",
+    "ibm-watsonx",
+    "granite",
+    "safety-advisor"
+  ],
+  "author": "AI Mechanical Safety Compliance Advisor",
+  "license": "MIT"
+}
